@@ -1,65 +1,78 @@
-using Microsoft.EntityFrameworkCore;
+// File: PaymentsService/Messaging/PaymentRequestConsumer.cs
+using System.Threading;
+using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using PaymentsService.Data;
 using PaymentsService.Models;
 using StackExchange.Redis;
-using System.Text.Json;
 
-namespace PaymentsService.Messaging;
-
-public class PaymentRequestSubscriber : BackgroundService
+namespace PaymentsService.Messaging
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ISubscriber _sub;
-    public PaymentRequestSubscriber(IServiceScopeFactory scopeFactory, IConnectionMultiplexer mux)
+    public class PaymentRequestSubscriber : BackgroundService
     {
-        _scopeFactory = scopeFactory;
-        _sub = mux.GetSubscriber();
-    }
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ISubscriber _subscriber;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        _sub.Subscribe("orders.created", async (channel, value) =>
+        public PaymentRequestSubscriber(IServiceScopeFactory scopeFactory, IConnectionMultiplexer mux)
         {
-            var req = JsonSerializer.Deserialize<PaymentRequest>(value!);
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            _scopeFactory = scopeFactory;
+            _subscriber = mux.GetSubscriber();
+        }
 
-            // Сохраняем в inbox_events
-            db.InboxEvents.Add(new InboxEvent
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            // Подписываемся на канал orders.created
+            _subscriber.Subscribe(
+                new RedisChannel("orders.created", RedisChannel.PatternMode.Literal),
+                async (channel, value) =>
             {
-                Topic = channel,
-                Payload = value!
-            });
-            await db.SaveChangesAsync(stoppingToken);
+                var req = JsonSerializer.Deserialize<PaymentRequest>(value!);
+                if (req is null) return;
 
-            // Пытаемся списать средства
-            bool success = false;
-            var account = await db.Accounts
-                                  .SingleOrDefaultAsync(a => a.UserId == req!.UserId, stoppingToken);
-            if (account != null)
-            {
-                account.Balance -= req.Amount;
-                if (account.Balance >= 0)
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+                // Сохраняем в inbox_events
+                db.InboxEvents.Add(new InboxEvent
                 {
-                    await db.SaveChangesAsync(stoppingToken);
-                    success = true;
-                }
-                else
-                {
-                    account.Balance += req.Amount; // откат
-                }
-            }
+                    Topic = channel,
+                    Payload = value!
+                });
+                await db.SaveChangesAsync(stoppingToken);
 
-            // Публикуем результат в outbox
-            var result = new PaymentResultEvent(req.OrderId, success);
-            db.OutboxEvents.Add(new OutboxEvent
-            {
-                Topic = "orders.payment-result",
-                Payload = JsonSerializer.Serialize(result)
+                // Пытаемся списать средства
+                bool success = false;
+                var account = await db.Accounts
+                                      .SingleOrDefaultAsync(a => a.UserId == req.UserId, stoppingToken);
+                if (account != null)
+                {
+                    account.Balance -= req.Amount;
+                    if (account.Balance >= 0)
+                    {
+                        await db.SaveChangesAsync(stoppingToken);
+                        success = true;
+                    }
+                    else
+                    {
+                        account.Balance += req.Amount; // откат
+                    }
+                }
+
+                // Публикуем результат в outbox
+                var result = new PaymentResultEvent(req.OrderId, success);
+                db.OutboxEvents.Add(new OutboxEvent
+                {
+                    Topic = "orders.payment-result",
+                    Payload = JsonSerializer.Serialize(result)
+                });
+                await db.SaveChangesAsync(stoppingToken);
             });
-            await db.SaveChangesAsync(stoppingToken);
-        });
-        return Task.CompletedTask;
+
+            // Держим сервис живым до отмены
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
     }
 }

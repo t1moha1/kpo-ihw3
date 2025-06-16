@@ -8,7 +8,7 @@ API_URL = "http://localhost"
 
 @pytest.fixture(scope="module")
 def user_id():
-    return "22222222-2222-2222-2222-222222222222"
+    return "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 
 def test_create_account_and_initial_balance(user_id):
     # 1) Создать счёт
