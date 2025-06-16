@@ -21,7 +21,7 @@ public class OrdersController : ControllerBase
         var evt = new OutboxEvent {
             Id = Guid.NewGuid(),
             Topic = "orders.created",
-            Payload = JsonSerializer.Serialize(new { order.Id, order.UserId, order.Amount })
+            Payload = JsonSerializer.Serialize(new { OrderId = order.Id, UserId = order.UserId, Amount = order.Amount })
         };
 
         await using var tx = await _db.Database.BeginTransactionAsync();

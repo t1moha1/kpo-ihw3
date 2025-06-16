@@ -97,7 +97,7 @@ services:
 
   api-gateway:
     build:
-      context: ./ApiGateway
+      context: ./APIGateway
       dockerfile: Dockerfile
     container_name: api-gateway
     environment:

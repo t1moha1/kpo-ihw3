@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OrdersService.Data;
 using OrdersService.Messaging;
 using StackExchange.Redis;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +20,10 @@ builder.Services.AddHostedService<OutboxPublisher>();
 builder.Services.AddHostedService<PaymentResultSubscriber>();
 
 // Controllers, Swagger
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

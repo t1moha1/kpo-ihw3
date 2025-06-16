@@ -22,7 +22,13 @@ namespace PaymentsService.Controllers
             if (await _db.Accounts.AnyAsync(a => a.UserId == userId))
                 return BadRequest("Account exists");
 
-            var account = new Account { Id = Guid.NewGuid(), UserId = userId, Balance = 0 };
+            var account = new Account
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Balance = 0,
+                RowVersion = new byte[8]
+            };
             _db.Accounts.Add(account);
             await _db.SaveChangesAsync();
             return CreatedAtAction(nameof(GetBalance), new { userId }, account);

@@ -7,5 +7,5 @@ public class Account
     public Guid UserId { get; set; }
     public decimal Balance { get; set; }
     [Timestamp]
-    public byte[] RowVersion { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
 }
