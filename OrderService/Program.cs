@@ -28,8 +28,7 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
-app.Run();
 app.Run();
