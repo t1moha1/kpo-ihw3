@@ -1,37 +1,48 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
-
+using Yarp.ReverseProxy;
+using Yarp.ReverseProxy.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(80); // или 8080
-});
-
-// Add services to the container
-builder.Services.AddControllers();
-
-// Для минимальных API
-builder.Services.AddEndpointsApiExplorer();       
-builder.Services.AddSwaggerGen();
+builder.Services.AddReverseProxy()
+    .LoadFromMemory(
+        new[]
+        {
+            new RouteConfig
+            {
+                RouteId = "orders_route",
+                ClusterId = "orders_cluster",
+                Match = new RouteMatch { Path = "/orders/{**catchall}" }
+            },
+            new RouteConfig
+            {
+                RouteId = "payments_route",
+                ClusterId = "payments_cluster",
+                Match = new RouteMatch { Path = "/payments/{**catchall}" }
+            }
+        },
+        new[]
+        {
+            new ClusterConfig
+            {
+                ClusterId = "orders_cluster",
+                Destinations = new Dictionary<string, DestinationConfig>
+                {
+                    ["dest1"] = new DestinationConfig { Address = "http://orders-service:80/" }
+                }
+            },
+            new ClusterConfig
+            {
+                ClusterId = "payments_cluster",
+                Destinations = new Dictionary<string, DestinationConfig>
+                {
+                    ["dest1"] = new DestinationConfig { Address = "http://payments-service:80/" }
+                }
+            }
+        }
+    );
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
-
-app.MapControllers();
-
-app.UseSwagger();           // swagger.json доступен по /swagger/v1/swagger.json
-app.UseSwaggerUI();
+app.MapReverseProxy();
 
 app.Run();
