@@ -1,0 +1,33 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using PaymentsService.Data;
+using PaymentsService.Models;
+using Confluent.Kafka;
+
+namespace PaymentsService.Messaging;
+public class OutboxPublisher : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IMessageProducer _producer;
+    public OutboxPublisher(IServiceScopeFactory scopeFactory, IMessageProducer producer)
+    {
+        _scopeFactory = scopeFactory;
+        _producer = producer;
+    }
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            var pending = await db.OutboxEvents.Where(e => e.PublishedAt == null).ToListAsync(stoppingToken);
+            foreach (var evt in pending)
+            {
+                await _producer.ProduceAsync(evt.Topic, evt.Payload);
+                evt.PublishedAt = DateTime.UtcNow;
+            }
+            await db.SaveChangesAsync(stoppingToken);
+            await Task.Delay(5000, stoppingToken);
+        }
+    }
+}
