@@ -1,35 +1,11 @@
 version: '3.8'
 
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.2.1
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - msnet
-
-  kafka:
-    image: confluentinc/cp-kafka:7.2.1
-    container_name: kafka
-    depends_on:
-      - zookeeper
+  redis:
+    image: redis:7-alpine
+    container_name: redis
     ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_CREATE_TOPICS: "orders.created:1:1,orders.payment-result:1:1"
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092 >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "6379:6379"
     networks:
       - msnet
 
@@ -62,7 +38,7 @@ services:
     volumes:
       - payments-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5435:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-h", "payments-db", "-U", "postgres"]
       interval: 5s
@@ -80,9 +56,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__OrdersDb: "Host=orders-db;Database=ordersdb;Username=postgres;Password=postgres"
-      Kafka__BootstrapServers: "kafka:9092"
+      Redis__ConnectionString: "redis:6379"
     depends_on:
-      - kafka
+      - redis
       - orders-db
     entrypoint:
       - sh
@@ -104,9 +80,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__PaymentsDb: "Host=payments-db;Database=paymentsdb;Username=postgres;Password=postgres"
-      Kafka__BootstrapServers: "kafka:9092"
+      Redis__ConnectionString: "redis:6379"
     depends_on:
-      - kafka
+      - redis
       - payments-db
     entrypoint:
       - sh
@@ -130,7 +106,6 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - kafka
       - orders-service
       - payments-service
     restart: on-failure

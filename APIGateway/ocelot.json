@@ -1,0 +1,40 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/payments/create",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "payments-service", "Port": 80 } ],
+      "UpstreamPathTemplate": "/payments/create",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/payments/topup",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "payments-service", "Port": 80 } ],
+      "UpstreamPathTemplate": "/payments/topup",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/payments/balance",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "payments-service", "Port": 80 } ],
+      "UpstreamPathTemplate": "/payments/balance",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/orders",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "orders-service", "Port": 80 } ],
+      "UpstreamPathTemplate": "/orders",
+      "UpstreamHttpMethod": [ "POST", "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/orders/{orderId}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "orders-service", "Port": 80 } ],
+      "UpstreamPathTemplate": "/orders/{orderId}",
+      "UpstreamHttpMethod": [ "GET" ]
+    }
+  ],
+  "GlobalConfiguration": { }
+}

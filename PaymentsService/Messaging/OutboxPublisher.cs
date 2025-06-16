@@ -2,30 +2,36 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using PaymentsService.Data;
 using PaymentsService.Models;
-using Confluent.Kafka;
+using StackExchange.Redis;
 
 namespace PaymentsService.Messaging;
+
 public class OutboxPublisher : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IMessageProducer _producer;
-    public OutboxPublisher(IServiceScopeFactory scopeFactory, IMessageProducer producer)
+    private readonly ISubscriber _sub;
+    public OutboxPublisher(IServiceScopeFactory scopeFactory, IConnectionMultiplexer mux)
     {
         _scopeFactory = scopeFactory;
-        _producer = producer;
+        _sub = mux.GetSubscriber();
     }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-            var pending = await db.OutboxEvents.Where(e => e.PublishedAt == null).ToListAsync(stoppingToken);
+            var pending = await db.OutboxEvents
+                                  .Where(e => e.PublishedAt == null)
+                                  .ToListAsync(stoppingToken);
+
             foreach (var evt in pending)
             {
-                await _producer.ProduceAsync(evt.Topic, evt.Payload);
+                await _sub.PublishAsync(evt.Topic, evt.Payload);
                 evt.PublishedAt = DateTime.UtcNow;
             }
+
             await db.SaveChangesAsync(stoppingToken);
             await Task.Delay(5000, stoppingToken);
         }

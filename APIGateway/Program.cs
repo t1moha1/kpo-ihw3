@@ -1,48 +1,21 @@
-using Yarp.ReverseProxy;
-using Yarp.ReverseProxy.Configuration;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Ocelot.DependencyInjection;
+using Ocelot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddReverseProxy()
-    .LoadFromMemory(
-        new[]
-        {
-            new RouteConfig
-            {
-                RouteId = "orders_route",
-                ClusterId = "orders_cluster",
-                Match = new RouteMatch { Path = "/orders/{**catchall}" }
-            },
-            new RouteConfig
-            {
-                RouteId = "payments_route",
-                ClusterId = "payments_cluster",
-                Match = new RouteMatch { Path = "/payments/{**catchall}" }
-            }
-        },
-        new[]
-        {
-            new ClusterConfig
-            {
-                ClusterId = "orders_cluster",
-                Destinations = new Dictionary<string, DestinationConfig>
-                {
-                    ["dest1"] = new DestinationConfig { Address = "http://orders-service:80/" }
-                }
-            },
-            new ClusterConfig
-            {
-                ClusterId = "payments_cluster",
-                Destinations = new Dictionary<string, DestinationConfig>
-                {
-                    ["dest1"] = new DestinationConfig { Address = "http://payments-service:80/" }
-                }
-            }
-        }
-    );
+// Подключаем ocelot.json
+builder.Configuration
+       .AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+
+// Регистрируем Ocelot
+builder.Services.AddOcelot();
 
 var app = builder.Build();
 
-app.MapReverseProxy();
+// Запускаем Ocelot middleware
+await app.UseOcelot();
 
 app.Run();

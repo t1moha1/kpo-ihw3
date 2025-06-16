@@ -1,43 +1,48 @@
-using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using OrdersService.Data;
 using OrdersService.Models;
+using StackExchange.Redis;
 using System.Text.Json;
 
-namespace OrdersService.Messaging;
-public class PaymentResultConsumer : BackgroundService
+namespace OrdersService.Messaging
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IConsumer<string, string> _consumer;
-    public PaymentResultConsumer(IServiceScopeFactory scopeFactory, IConfiguration config)
+    // Тип, в который мы десериализуем результат оплаты
+    public record PaymentResult(Guid OrderId, bool Success);
+
+    public class PaymentResultSubscriber : BackgroundService
     {
-        _scopeFactory = scopeFactory;
-        var cfg = new ConsumerConfig
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ISubscriber _subscriber;
+
+        public PaymentResultSubscriber(IServiceScopeFactory scopeFactory, IConnectionMultiplexer mux)
         {
-            BootstrapServers = config["Kafka:BootstrapServers"],
-            GroupId = "orders-service-consumer",
-            AutoOffsetReset = AutoOffsetReset.Earliest
-        };
-        _consumer = new ConsumerBuilder<string, string>(cfg).Build();
-        _consumer.Subscribe("orders.payment-result");
-    }
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
+            _scopeFactory = scopeFactory;
+            _subscriber = mux.GetSubscriber();
+        }
+
+        protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var cr = _consumer.Consume(stoppingToken);
-            var msg = JsonSerializer.Deserialize<PaymentResult>(cr.Message.Value);
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
-            var order = await db.Orders.FindAsync(msg!.OrderId);
-            if (order != null)
+            // Подписываемся на канал результатов оплаты
+            _subscriber.Subscribe("orders.payment-result", async (channel, value) =>
             {
-                order.Status = msg.Success ? OrderStatus.FINISHED : OrderStatus.CANCELLED;
-                await db.SaveChangesAsync(stoppingToken);
-            }
+                var msg = JsonSerializer.Deserialize<PaymentResult>(value!);
+                if (msg is null) return;
+
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+                var order = await db.Orders.FindAsync(msg.OrderId);
+                if (order != null)
+                {
+                    order.Status = msg.Success
+                        ? OrderStatus.FINISHED
+                        : OrderStatus.CANCELLED;
+                    await db.SaveChangesAsync(stoppingToken);
+                }
+            });
+
+            // Не завершаем сервис, оставляем подписку живой
+            return Task.Delay(-1, stoppingToken);
         }
     }
 }
-
-public record PaymentResult(Guid OrderId, bool Success);

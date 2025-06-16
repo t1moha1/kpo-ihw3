@@ -1,17 +1,16 @@
-using Confluent.Kafka;
-
+using StackExchange.Redis;
 namespace PaymentsService.Messaging;
+
 public interface IMessageProducer { Task ProduceAsync(string topic, string message); }
-public class KafkaProducer : IMessageProducer
+
+public class RedisProducer : IMessageProducer
 {
-    private readonly IProducer<string, string> _producer;
-    public KafkaProducer(IConfiguration config)
+    private readonly ISubscriber _sub;
+    public RedisProducer(IConnectionMultiplexer mux)
     {
-        var cfg = new ProducerConfig { BootstrapServers = config["Kafka:BootstrapServers"] };
-        _producer = new ProducerBuilder<string, string>(cfg).Build();
+        _sub = mux.GetSubscriber();
     }
-    public async Task ProduceAsync(string topic, string message)
-    {
-        await _producer.ProduceAsync(topic, new Message<string, string> { Key = null, Value = message });
-    }
+
+    public Task ProduceAsync(string topic, string message) =>
+        _sub.PublishAsync(topic, message);
 }
