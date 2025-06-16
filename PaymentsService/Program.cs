@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PaymentsService.Data;
 using PaymentsService.Messaging;
+using PaymentsService.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,5 +24,12 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.MapControllers();
 
-app.MigrateDatabase();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+    db.Database.EnsureCreated();
+}
+
+
+
 app.Run();

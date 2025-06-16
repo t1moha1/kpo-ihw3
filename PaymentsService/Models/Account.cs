@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 namespace PaymentsService.Models;
+
 public class Account
 {
     public Guid Id { get; set; }

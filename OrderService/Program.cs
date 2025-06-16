@@ -25,5 +25,11 @@ app.UseSwaggerUI();
 app.MapControllers();
 
 // Автоматическая миграция БД
-app.MigrateDatabase();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+    db.Database.EnsureCreated();
+}
+
+app.Run();
 app.Run();
