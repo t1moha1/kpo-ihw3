@@ -1,9 +1,14 @@
-using Microsoft.EntityFrameworkCore;
+// File: OrderService/Messaging/PaymentResultSubscriber.cs
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using OrdersService.Data;
 using OrdersService.Models;
 using StackExchange.Redis;
-using System.Text.Json;
 
 namespace OrdersService.Messaging
 {
@@ -21,10 +26,12 @@ namespace OrdersService.Messaging
             _subscriber = mux.GetSubscriber();
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Подписываемся на канал результатов оплаты
-            _subscriber.Subscribe("orders.payment-result", async (channel, value) =>
+            // Подписываемся на канал с явным режимом Literal
+            _subscriber.Subscribe(
+                new RedisChannel("orders.payment-result", RedisChannel.PatternMode.Literal),
+                async (channel, value) =>
             {
                 var msg = JsonSerializer.Deserialize<PaymentResult>(value!);
                 if (msg is null) return;
@@ -41,8 +48,8 @@ namespace OrdersService.Messaging
                 }
             });
 
-            // Не завершаем сервис, оставляем подписку живой
-            return Task.Delay(-1, stoppingToken);
+            // Держим сервис живым
+            await Task.Delay(Timeout.Infinite, stoppingToken);
         }
     }
 }
