@@ -1,30 +1,24 @@
-# Stage: build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 COPY ["APIGateway.csproj", "./"]
 RUN dotnet restore "APIGateway.csproj"
 
-# Скопируем весь код (включая ocelot.json!)
 COPY . .
 
 RUN dotnet publish "APIGateway.csproj" -c Release -o /app/publish
 
-# Stage: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Устанавливаем netcat для ожидания бэкендов
 RUN apt-get update \
  && apt-get install -y netcat-openbsd \
  && rm -rf /var/lib/apt/lists/*
 
-# Копируем опубликованное приложение (там уже есть ocelot.json благодаря CopyToOutputDirectory)
 COPY --from=build /app/publish ./
 
 EXPOSE 80
 
-# Ждём orders-service:80 и payments-service:80, потом стартуем Ocelot
 ENTRYPOINT ["sh","-c","\
   echo 'Waiting for orders-service on port 80…'; \
   until nc -z orders-service 80; do sleep 1; done; \

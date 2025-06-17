@@ -1,4 +1,3 @@
-// File: OrderService/Messaging/PaymentResultSubscriber.cs
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +11,6 @@ using StackExchange.Redis;
 
 namespace OrdersService.Messaging
 {
-    // Тип, в который мы десериализуем результат оплаты
     public record PaymentResult(Guid OrderId, bool Success);
 
     public class PaymentResultSubscriber : BackgroundService
@@ -28,7 +26,6 @@ namespace OrdersService.Messaging
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Подписываемся на канал с явным режимом Literal
             _subscriber.Subscribe(
                 new RedisChannel("orders.payment-result", RedisChannel.PatternMode.Literal),
                 async (channel, value) =>
@@ -48,7 +45,6 @@ namespace OrdersService.Messaging
                 }
             });
 
-            // Держим сервис живым
             await Task.Delay(Timeout.Infinite, stoppingToken);
         }
     }

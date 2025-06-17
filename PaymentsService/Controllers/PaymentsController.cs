@@ -1,4 +1,3 @@
-// File: PaymentsService/Controllers/PaymentsController.cs
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +14,6 @@ namespace PaymentsService.Controllers
         private readonly PaymentsDbContext _db;
         public PaymentsController(PaymentsDbContext db) => _db = db;
 
-        // Создать счёт
         [HttpPost("create")]
         public async Task<IActionResult> CreateAccount([FromQuery] Guid userId)
         {
@@ -34,7 +32,6 @@ namespace PaymentsService.Controllers
             return CreatedAtAction(nameof(GetBalance), new { userId }, account);
         }
 
-        // Пополнение
         [HttpPost("topup")]
         public async Task<IActionResult> TopUp(
             [FromQuery] Guid userId,
@@ -49,7 +46,6 @@ namespace PaymentsService.Controllers
             return Ok(account);
         }
 
-        // Баланс
         [HttpGet("balance")]
         public async Task<IActionResult> GetBalance([FromQuery] Guid userId)
         {

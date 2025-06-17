@@ -13,7 +13,6 @@ public class OrdersController : ControllerBase
     private readonly OrdersDbContext _db;
     public OrdersController(OrdersDbContext db) => _db = db;
 
-    // Создать заказ
     [HttpPost]
     public async Task<IActionResult> Create(Guid userId, decimal amount, string description)
     {
@@ -33,7 +32,6 @@ public class OrdersController : ControllerBase
         return Accepted(order);
     }
 
-    // Список заказов
     [HttpGet]
     public async Task<IActionResult> List(Guid userId)
     {
@@ -41,7 +39,6 @@ public class OrdersController : ControllerBase
         return Ok(list);
     }
 
-    // Статус заказа
     [HttpGet("{orderId}")]
     public async Task<IActionResult> Get(Guid orderId)
     {

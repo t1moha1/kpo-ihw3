@@ -1,4 +1,3 @@
-// File: OrderService/Messaging/OutboxPublisher.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using OrdersService.Data;
@@ -35,7 +34,6 @@ public class OutboxPublisher : BackgroundService
 
             await db.SaveChangesAsync(stoppingToken);
 
-            // Ускоряем опрос до 1 секунды
             await Task.Delay(1000, stoppingToken);
         }
     }

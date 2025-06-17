@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   redis:
@@ -52,6 +51,8 @@ services:
       context: ./OrderService
       dockerfile: Dockerfile
     container_name: orders-service
+    ports:
+      - "5003:80"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:80"
@@ -76,6 +77,8 @@ services:
       context: ./PaymentsService
       dockerfile: Dockerfile
     container_name: payments-service
+    ports:
+      - "5002:80"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:80"

@@ -6,20 +6,16 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DbContext
 builder.Services.AddDbContext<OrdersDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("OrdersDb")));
 
-// Redis
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]));
 builder.Services.AddSingleton<IMessageProducer, RedisProducer>();
 
-// Background services
 builder.Services.AddHostedService<OutboxPublisher>();
 builder.Services.AddHostedService<PaymentResultSubscriber>();
 
-// Controllers, Swagger
 builder.Services.AddControllers().AddJsonOptions(opt =>
 {
     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -29,7 +25,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Автоматическая миграция
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();

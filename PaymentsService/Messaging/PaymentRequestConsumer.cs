@@ -1,4 +1,3 @@
-// File: PaymentsService/Messaging/PaymentRequestSubscriber.cs
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
@@ -34,7 +33,6 @@ public class PaymentRequestSubscriber : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
 
-            // Сохраняем во входящие события
             db.InboxEvents.Add(new InboxEvent
             {
                 Topic = channel,
@@ -42,7 +40,6 @@ public class PaymentRequestSubscriber : BackgroundService
             });
             await db.SaveChangesAsync(stoppingToken);
 
-            // Пытаемся списать баланс
             bool success = false;
             var account = await db.Accounts
                                   .SingleOrDefaultAsync(a => a.UserId == req.UserId, stoppingToken);
@@ -56,11 +53,10 @@ public class PaymentRequestSubscriber : BackgroundService
                 }
                 else
                 {
-                    account.Balance += req.Amount; // откат
+                    account.Balance += req.Amount; 
                 }
             }
 
-            // Публикуем результат
             var result = new PaymentResultEvent(req.OrderId, success);
             db.OutboxEvents.Add(new OutboxEvent
             {
@@ -70,7 +66,6 @@ public class PaymentRequestSubscriber : BackgroundService
             await db.SaveChangesAsync(stoppingToken);
         });
 
-        // Держим сервис живым
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 }
